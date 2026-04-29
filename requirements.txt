@@ -1,0 +1,8 @@
+playwright
+pandas
+langgraph
+langchain
+scikit-learn
+numpy
+streamlit
+plotly
