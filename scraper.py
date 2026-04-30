@@ -35,7 +35,7 @@ async def scrape():
         while successful_scrapes < target_scrapes:
             # Construct URL with pagination
             page_url = f"{TARGET_URL}&o={current_page}" if current_page > 1 else TARGET_URL
-            print(f"\n--- 📄 Scraping Page {current_page} ---")
+            print(f"\n--- Scraping Page {current_page} ---", flush=True)
             
             try:
                 await page.goto(page_url, timeout=60000)
@@ -46,7 +46,7 @@ async def scrape():
                 await page.evaluate("window.scrollBy(0, 1000)")
                 await page.wait_for_timeout(1000)
             except Exception as e:
-                print(f"❌ Error loading page {current_page}: {e}")
+                print(f"Error loading page {current_page}: {e}", flush=True)
                 break
 
             # Find all links that look like car ads
@@ -61,10 +61,10 @@ async def scrape():
                     if full_url not in urls:
                         urls.append(full_url)
 
-            print(f"🔍 Found {len(urls)} potential car ads on this page.")
+            print(f"Found {len(urls)} potential car ads on this page.", flush=True)
 
             if not urls:
-                print("No more car links found on this page. Stopping.")
+                print("No more car links found on this page. Stopping.", flush=True)
                 break
 
             for url in urls:
@@ -81,20 +81,17 @@ async def scrape():
                     # 1. Extract Data
                     title_el = page.locator("h1")
                     title = await title_el.text_content() if await title_el.count() > 0 else "Unknown Title"
-                    print(f"   🚗 Scanning: {title[:50]}...", flush=True)
+                    print(f"   Scanning: {title[:50]}...", flush=True)
 
                     body_text = await page.locator("body").text_content()
                     
-                    # --- PRICE EXTRACTION ---
-                    # --- PRICE EXTRACTION (Smarter) ---
-                    # Avito usually puts the price in a bold p tag.
                     # --- PRICE EXTRACTION (Smarter) ---
                     price = 0
                     # Primary check: Bold price elements
                     price_els = page.locator("p:has-text('DH')")
                     for i in range(await price_els.count()):
                         txt = await price_els.nth(i).text_content()
-                        if txt and "Réf" not in txt and "Annonce" not in txt:
+                        if txt and "Ref" not in txt and "Annonce" not in txt:
                             match = re.search(r"(\d[\d\s,.]*)\s*(?:DH|MAD)", txt, re.IGNORECASE)
                             if match:
                                 val = int(re.sub(r"\D", "", match.group(1)))
@@ -115,23 +112,23 @@ async def scrape():
                         price = max(valid_prices) if valid_prices else 0
 
                     # --- SPECS EXTRACTION ---
-                    year_match = re.search(r"(?:Année-Modèle|Modèle|Année)[\s\S]{0,20}?(199\d|20[0-2]\d)", body_text, re.IGNORECASE)
+                    year_match = re.search(r"(?:Annee-Modele|Modele|Annee)[\s\S]{0,20}?(199\d|20[0-2]\d)", body_text, re.IGNORECASE)
                     if not year_match:
                         year_match = re.search(r"\b(199\d|20[0-2]\d)\b", body_text)
                     specs = {}
                     if year_match:
                         specs['year'] = int(year_match.group(1) if year_match.groups() else year_match.group(0))
                     
-                    mileage_match = re.search(r"(\d[\d\s,.]*)\s*(?:km|kilométrage)", body_text, re.IGNORECASE)
+                    mileage_match = re.search(r"(\d[\d\s,.]*)\s*(?:km|kilometrage)", body_text, re.IGNORECASE)
                     if mileage_match:
                         try:
                             specs['mileage'] = int(re.sub(r"\D", "", mileage_match.group(1)))
                         except: pass
 
-                    print(f"      📊 Extracted: Price={price} DH | Specs={specs}", flush=True)
+                    print(f"      Extracted: Price={price} DH | Specs={specs}", flush=True)
 
                     if price < 10000:
-                        print(f"      ⏭️  Skipping - Price too low or unlisted.", flush=True)
+                        print(f"      Skipping - Price too low or unlisted.", flush=True)
                         save_visited(url)
                         visited.add(url)
                         continue
@@ -139,7 +136,7 @@ async def scrape():
                     # 2. Click Phone Button (Fixed Strict Mode)
                     btn = page.locator("[data-testid='ShowPhoneCTA']").first
                     if await btn.count() == 0:
-                        btn = page.get_by_role("button", name=re.compile(r"numéro|Contacter|Appeler", re.I)).first
+                        btn = page.get_by_role("button", name=re.compile(r"numero|Contacter|Appeler", re.I)).first
 
                     if await btn.count() > 0:
                         await btn.click()
@@ -148,31 +145,31 @@ async def scrape():
                         phone_el = page.locator("a[href^='tel:']").first
                         if await phone_el.count() > 0:
                             phone = await phone_el.inner_text()
-                            print(f"      📞 Phone Found: {phone}", flush=True)
+                            print(f"      Phone Found: {phone}", flush=True)
                             
                             register_lead(phone, title, price, specs)
                             save_visited(url)
                             visited.add(url)
                             successful_scrapes += 1
-                            print(f"      ✅ [{successful_scrapes}/{target_scrapes}] Lead Saved Successfully.\n", flush=True)
+                            print(f"      [{successful_scrapes}/{target_scrapes}] Lead Saved Successfully.\n", flush=True)
                         else:
-                            print(f"      ❌ Could not find phone number after click.", flush=True)
+                            print(f"      Could not find phone number after click.", flush=True)
                     else:
-                        print(f"      ❌ Phone button missing.", flush=True)
+                        print(f"      Phone button missing.", flush=True)
 
                 except Exception as e:
-                    print(f"      ⚠️ Error scanning car: {e}", flush=True)
+                    print(f"      Error scanning car: {e}", flush=True)
 
             current_page += 1
             if current_page > 10: # Safety cap
-                print("Safety cap reached (Page 10). Stopping.")
+                print("Safety cap reached (Page 10). Stopping.", flush=True)
                 break
 
         await browser.close()
         if successful_scrapes > 0:
-            print(f"\n🏁 Finished! Recorded {successful_scrapes} new leads today.")
+            print(f"\nFinished! Recorded {successful_scrapes} new leads today.", flush=True)
         else:
-            print("\n🏁 Finished! No new leads found.")
+            print("\nFinished! No new leads found.", flush=True)
 
 if __name__ == "__main__":
     asyncio.run(scrape())

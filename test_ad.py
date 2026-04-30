@@ -17,8 +17,8 @@ async def test_scrape():
         print("Price Match:", price_match.group(1).strip() if price_match else "None")
         
         # Test Year extraction
-        # Let's look for "Modèle", "Année", or just typical list patterns
-        year_match = re.search(r"(?:Année-Modèle|Modèle|Année)[\s\S]{0,20}?(199\d|20[0-2]\d)", body_text, re.IGNORECASE)
+        # Let's look for "Modele", "Annee", or just typical list patterns
+        year_match = re.search(r"(?:Annee-Modele|Modele|Annee)[\s\S]{0,20}?(199\d|20[0-2]\d)", body_text, re.IGNORECASE)
         if not year_match:
             # Fallback, just look for 20xx near other car specs
             year_match = re.search(r"\b(199\d|20[0-2]\d)\b", body_text)
