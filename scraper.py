@@ -147,7 +147,22 @@ async def scrape():
                             phone = await phone_el.inner_text()
                             print(f"      Phone Found: {phone}", flush=True)
                             
-                            register_lead(phone, title, price, specs)
+                            # --- SELLER EXTRACTION ---
+                            seller_name = "Unknown"
+                            try:
+                                seller_name = await page.evaluate('''() => {
+                                    let dl = window.dataLayer || [];
+                                    for(let i = 0; i < dl.length; i++) {
+                                        if(dl[i].seller_name) return dl[i].seller_name;
+                                    }
+                                    return "Unknown";
+                                }''')
+                            except Exception:
+                                pass
+                                
+                            print(f"      Seller Found: {seller_name}", flush=True)
+                            
+                            register_lead(phone, title, price, specs, seller_name)
                             save_visited(url)
                             visited.add(url)
                             successful_scrapes += 1

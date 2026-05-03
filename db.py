@@ -21,7 +21,7 @@ def init_db():
     conn.close()
     print(f"Database {DB_NAME} initialized with correct schema.")
 
-def register_lead(phone, model, price, specs=None):
+def register_lead(phone, model, price, specs=None, seller_name="Unknown"):
     conn = sqlite3.connect(DB_NAME)
     
     # Logic: Deterministic A/B Split based on phone number
@@ -39,14 +39,15 @@ def register_lead(phone, model, price, specs=None):
             "target_price": int(price * 0.85) if price else None
         },
         "strategy_group": strategy,
+        "seller_name": seller_name,
         "language": "UNKNOWN"
     }
     
     try:
-        # FIXED: Insert statement now includes strategy_group
+        # FIXED: Insert statement now includes strategy_group and seller_name
         conn.execute(
-            "INSERT INTO leads (phone, model_name, scraped_price, strategy_group, state_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (phone, model, price, strategy, json.dumps(initial_state), datetime.now(), datetime.now())
+            "INSERT INTO leads (phone, model_name, scraped_price, strategy_group, seller_name, state_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (phone, model, price, strategy, seller_name, json.dumps(initial_state), datetime.now(), datetime.now())
         )
         conn.commit()
         print(f"Lead Saved: {phone} [{model}]")
