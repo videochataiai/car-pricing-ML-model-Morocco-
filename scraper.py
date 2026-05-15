@@ -3,8 +3,12 @@ import re
 import os
 from playwright.async_api import async_playwright
 from db import register_lead
+from dotenv import load_dotenv
 
-TARGET_URL = "https://www.avito.ma/fr/maroc/voitures-%C3%A0_vendre?price_min=10000"
+load_dotenv()
+
+DEFAULT_URL = "https://www.avito.ma/fr/maroc/voitures-%C3%A0_vendre?price_min=10000"
+TARGET_URL = os.getenv("TARGET_URL", DEFAULT_URL)
 VISITED_FILE = "scraped_urls.txt"
 
 def load_visited():
@@ -20,7 +24,7 @@ def save_visited(url):
 async def scrape():
     visited = load_visited()
     successful_scrapes = 0
-    target_scrapes = 10
+    target_scrapes = 100
     current_page = 1
     
     async with async_playwright() as p:
@@ -112,9 +116,9 @@ async def scrape():
                         price = max(valid_prices) if valid_prices else 0
 
                     # --- SPECS EXTRACTION ---
-                    year_match = re.search(r"(?:Annee-Modele|Modele|Annee)[\s\S]{0,20}?(199\d|20[0-2]\d)", body_text, re.IGNORECASE)
+                    year_match = re.search(r"(?:Annee-Modele|Modele|Annee)[\s\S]{0,20}?(199\d|20[0-3]\d)", body_text, re.IGNORECASE)
                     if not year_match:
-                        year_match = re.search(r"\b(199\d|20[0-2]\d)\b", body_text)
+                        year_match = re.search(r"\b(199\d|20[0-3]\d)\b", body_text)
                     specs = {}
                     if year_match:
                         specs['year'] = int(year_match.group(1) if year_match.groups() else year_match.group(0))
@@ -176,8 +180,8 @@ async def scrape():
                     print(f"      Error scanning car: {e}", flush=True)
 
             current_page += 1
-            if current_page > 10: # Safety cap
-                print("Safety cap reached (Page 10). Stopping.", flush=True)
+            if current_page > 100: # Safety cap
+                print("Safety cap reached (Page 100). Stopping.", flush=True)
                 break
 
         await browser.close()

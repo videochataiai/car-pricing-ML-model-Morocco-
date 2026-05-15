@@ -72,7 +72,7 @@ with col_left:
         SELECT 
             strategy_group, 
             COUNT(*) as total,
-            SUM(CASE WHEN status='NEGOTIATING' THEN 1 ELSE 0 END) as success
+            SUM(CASE WHEN status='CLOSED' THEN 1 ELSE 0 END) as success
         FROM leads 
         GROUP BY strategy_group
     """

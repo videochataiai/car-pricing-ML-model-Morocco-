@@ -35,6 +35,13 @@ class Wacli:
                 capture_output=True, text=True
             )
             
+            if result.returncode != 0:
+                print(f"wacli get_incoming failed: {result.stderr}")
+                return []
+                
+            if not result.stdout.strip():
+                return []
+                
             messages = json.loads(result.stdout)
             
             # Filter for recent incoming messages only

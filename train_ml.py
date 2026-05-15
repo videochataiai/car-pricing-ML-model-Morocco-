@@ -19,9 +19,9 @@ def train_new_brain():
             model_name,
             json_extract(state_json, '$.car.year') as year,
             json_extract(state_json, '$.car.mileage') as mileage,
-            json_extract(state_json, '$.car.target_price') as true_value
+            COALESCE(json_extract(state_json, '$.seller_current_price'), json_extract(state_json, '$.car.target_price')) as true_value
         FROM leads 
-        WHERE status IN ('NEGOTIATING', 'CLOSED')
+        WHERE status = 'CLOSED'
         AND true_value IS NOT NULL
     """
     df = pd.read_sql(query, conn)
@@ -34,7 +34,9 @@ def train_new_brain():
     print(f"Training TensorFlow model on {len(df)} verified negotiations...")
 
     # 2. FEATURE ENGINEERING
-    df['car_age'] = 2026 - df['year']
+    import datetime
+    current_year = datetime.datetime.now().year
+    df['car_age'] = current_year - df['year']
     df['mileage'] = df['mileage'].fillna(df['mileage'].median() if not df['mileage'].isna().all() else 150000)
     
     # 3. PREPROCESSING

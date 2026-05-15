@@ -6,3 +6,7 @@ scikit-learn
 numpy
 streamlit
 plotly
+tensorflow
+joblib
+langchain-ollama
+python-dotenv

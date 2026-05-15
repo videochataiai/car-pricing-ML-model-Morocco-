@@ -1,5 +1,9 @@
-import re
+import os
 import json
+from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
 from langgraph.graph import StateGraph, END
 from typing import TypedDict, List, Optional, Literal
 from langchain_ollama import ChatOllama 
@@ -30,10 +34,12 @@ class AgentState(TypedDict):
     seller_current_price: int # The latest number the seller texted
 
 # --- 3. THE BRAIN (LOGIC & PERCEPTION) ---
+BOT_NAME = os.getenv("BOT_NAME", "Hamza")
+BOT_LANG = os.getenv("BOT_LANGUAGE", "MIX DARIJA AND FRENCH")
 
-SYSTEM_DIRECTIVE = """
-You are Hamza, a Moroccan car buyer.
-LANGUAGE: MIX DARIJA AND FRENCH ONLY. NO ENGLISH.
+SYSTEM_DIRECTIVE = f"""
+You are {BOT_NAME}, a Moroccan car buyer.
+LANGUAGE: {BOT_LANG} ONLY. NO ENGLISH.
 STYLE: Short, casual WhatsApp messages. 
 """
 
@@ -73,8 +79,8 @@ def analyze_input(state: AgentState):
         
         state['language'] = data.get('lang', "DARIJA")
         
-    except:
-        pass # If we can't read it, we assume no price change
+    except Exception as e:
+        print(f"LLM extraction error: {e}")
 
     # 2. Market Research (Depreciation Logic)
     # If we haven't calculated value yet, do it now.
@@ -96,11 +102,11 @@ def router(state: AgentState):
     """
     Decides the next move based on the Gap Analysis.
     """
-    seller_price = state.get('seller_current_price') or state['car']['listing_price']
-    target = state['car']['market_value']
+    seller_price = state.get('seller_current_price') or state['car'].get('listing_price')
+    target = state['car'].get('market_value')
     
     # Safety: If we have no target, default to negotiation
-    if not target: return "negotiate"
+    if not target or not seller_price: return "negotiate"
 
     # 1. The Gap Logic
     gap = seller_price - target
@@ -130,16 +136,19 @@ def negotiate(state: AgentState):
     current = state.get('seller_current_price') or state['car']['listing_price']
     target = state['car']['market_value']
     
+    current_year = datetime.now().year
+    car_age = current_year - state['car']['year'] if state['car'].get('year') else 5
+    
     # Dynamic Argument Generator
     prompt = f"""
     {SYSTEM_DIRECTIVE}
     CONTEXT: 
-    - Car: {state['car']['model']} ({state['car']['year']})
+    - Car: {state['car']['model']} ({state['car'].get('year', 'Unknown')})
     - Seller Wants: {current} DH
     - Market Value (Research): {target} DH
     
     GOAL: Convince them to lower the price.
-    ARGUMENT: Use the car's age ({2025 - state['car']['year']} years old) and market depreciation.
+    ARGUMENT: Use the car's age ({car_age} years old) and market depreciation.
     OFFER: Offer exactly {target} DH.
     
     Write 1 sentence. Polite but firm.

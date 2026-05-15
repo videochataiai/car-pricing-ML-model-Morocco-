@@ -1,8 +1,12 @@
 import sqlite3
 import json
+import os
 from datetime import datetime
+from dotenv import load_dotenv
 
-DB_NAME = "research_study.db"
+load_dotenv()
+
+DB_NAME = os.getenv("DB_NAME", "research_study.db")
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -12,6 +16,7 @@ def init_db():
         model_name TEXT,
         scraped_price INTEGER,
         strategy_group TEXT,
+        seller_name TEXT,
         status TEXT DEFAULT 'INIT',
         state_json TEXT, 
         created_at DATETIME,

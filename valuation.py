@@ -4,6 +4,8 @@ import os
 import numpy as np
 
 MODEL_PATH = "models/price_predictor.pkl"
+TF_MODEL_PATH = "models/tf_price_predictor.keras"
+TF_PREPROCESSOR_PATH = "models/tf_preprocessor.pkl"
 NUMPY_WEIGHTS_PATH = "models/numpy_nn_weights.pkl"
 CAT_ENCODER_PATH = "models/cat_encoder.pkl"
 NUM_SCALER_PATH = "models/num_scaler.pkl"
@@ -11,6 +13,8 @@ NUM_SCALER_PATH = "models/num_scaler.pkl"
 class ValuationEngine:
     def __init__(self):
         self.model = None
+        self.tf_model = None
+        self.tf_preprocessor = None
         self.nn_weights = None
         self.cat_encoder = None
         self.num_scaler = None
@@ -29,6 +33,17 @@ class ValuationEngine:
             except Exception as e:
                 print(f"NumPy Model Load Failed: {e}")
 
+        # Try TensorFlow Keras model
+        if os.path.exists(TF_MODEL_PATH) and os.path.exists(TF_PREPROCESSOR_PATH):
+            try:
+                import tensorflow as tf
+                self.tf_model = tf.keras.models.load_model(TF_MODEL_PATH)
+                self.tf_preprocessor = joblib.load(TF_PREPROCESSOR_PATH)
+                print("TensorFlow Brain Loaded: Pricing logic active.")
+                return
+            except Exception as e:
+                print(f"TF Model Load Failed: {e}")
+
         # Fallback to Scikit-Learn
         if os.path.exists(MODEL_PATH):
             try:
@@ -43,14 +58,17 @@ class ValuationEngine:
         """
         Returns the AI's estimated 'True Market Value'.
         """
+        import datetime
+        current_year = datetime.datetime.now().year
+        car_age = current_year - year if year else 10
+        mileage_val = mileage if mileage else 150000
+        
         # SCENARIO A: NumPy Neural Network
         if self.nn_weights:
             try:
                 # 1. Preprocess
                 cat_features = self.cat_encoder.transform(pd.DataFrame([{'model_name': car_model}]))
                 
-                car_age = 2026 - year
-                mileage_val = mileage if mileage else 150000
                 num_features = self.num_scaler.transform(pd.DataFrame([{'car_age': car_age, 'mileage': mileage_val}]))
                 
                 X = np.hstack((cat_features, num_features))
@@ -75,13 +93,34 @@ class ValuationEngine:
             except Exception as e:
                 print(f"NumPy Inference Failed: {e}. Falling back to listed price heuristic.")
                 return int(listed_price * 0.85)
+                
+        # SCENARIO B: TensorFlow Keras Model
+        elif self.tf_model and self.tf_preprocessor:
+            try:
+                features = pd.DataFrame([{
+                    'model_name': car_model,
+                    'car_age': car_age,
+                    'mileage': mileage_val
+                }])
+                X_processed = self.tf_preprocessor.transform(features)
+                predicted_price = float(self.tf_model.predict(X_processed, verbose=0)[0][0])
+                
+                if predicted_price < (listed_price * 0.5):
+                    return int(listed_price * 0.7)
+                if predicted_price > (listed_price * 1.3):
+                    return int(listed_price)
+                    
+                return int(predicted_price)
+            except Exception as e:
+                print(f"TF Inference Failed: {e}. Falling back to heuristic.")
+                return int(listed_price * 0.85)
 
-        # SCENARIO B: Scikit-Learn Model
+        # SCENARIO C: Scikit-Learn Model
         elif self.model:
             features = pd.DataFrame([{
                 'model_name': car_model,
-                'car_age': 2026 - year,
-                'mileage': mileage if mileage else 150000 
+                'car_age': car_age,
+                'mileage': mileage_val 
             }])
             
             try:
@@ -97,7 +136,7 @@ class ValuationEngine:
             except:
                 return int(listed_price * 0.85)
 
-        # SCENARIO C: Cold Start
+        # SCENARIO D: Cold Start
         else:
             return int(listed_price * 0.85)
 
